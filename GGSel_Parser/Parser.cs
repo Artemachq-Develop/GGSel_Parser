@@ -1,11 +1,16 @@
 ﻿using GGSel_Parser;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-public class Parser
+internal class Parser
 {
     private readonly HttpClient _httpClient;
+
+    /* ---- CONST ---- */
+
+    private const string pattern_wmrPrice = "price_wmr";
+    private const string pattern_wmzPrice = "price_wmz";
+    private const string pattern_wmePrice = "price_wme";
 
     public Parser()
     {
@@ -61,37 +66,46 @@ public class Parser
                         product.SellerName = sellerElement.GetString() ?? "Неизвестный продавец";
                     }
 
-                    // Извлекаем цену в рублях (приоритет price_wmr)
-                    decimal priceRub = 0;
+                    #region PriceParse
 
-                    if (root.TryGetProperty("price_wmr", out var priceWmrElement))
-                    {
-                        if (decimal.TryParse(priceWmrElement.GetString(), out priceRub))
+                        if (Settings.ProgramPrice == ProgramPrice.Rub)
                         {
-                            product.PriceRub = priceRub;
+                            if (root.TryGetProperty(pattern_wmrPrice, out var priceWmrElement))
+                            {
+                                if (double.TryParse(priceWmrElement.GetString(), out double priceRub))
+                                {
+                                    product.Price = priceRub;
+                                }
+                            }
                         }
-                    }
 
-                    /*// Если нет цены в рублях, конвертируем из долларов
-                    if (priceRub == 0 && root.TryGetProperty("price_wmz", out var priceWmzElement))
-                    {
-                        if (decimal.TryParse(priceWmzElement.GetString(), out decimal priceUsd))
+                        if (Settings.ProgramPrice == ProgramPrice.Usd)
                         {
-                            product.PriceRub = priceUsd * 95; // Конвертация в рубли
+                            if (root.TryGetProperty(pattern_wmzPrice, out var priceWmzElement))
+                            {
+                                if (double.TryParse(priceWmzElement.GetString(), out double priceUsd))
+                                {
+                                    product.Price = priceUsd * 95; // Конвертация в рубли
+                                }
+                            }
                         }
-                    }
 
-                    // Если нет цены в долларах, конвертируем из евро
-                    if (priceRub == 0 && root.TryGetProperty("price_wme", out var priceWmeElement))
-                    {
-                        if (decimal.TryParse(priceWmeElement.GetString(), out decimal priceEur))
+
+                        if (Settings.ProgramPrice == ProgramPrice.Eur)
                         {
-                            product.PriceRub = priceEur * 105; // Конвертация в рубли
+                            if (root.TryGetProperty(pattern_wmePrice, out var priceWmeElement))
+                            {
+                                if (double.TryParse(priceWmeElement.GetString(), out double priceEur))
+                                {
+                                    product.Price = priceEur * 105; // Конвертация в рубли
+                                }
+                            }
                         }
-                    }*/
+
+                    #endregion
 
                     // Добавляем товар только если есть цена
-                    if (product.PriceRub > 0 && !string.IsNullOrEmpty(product.Name))
+                    if (product.Price > 0 && !string.IsNullOrEmpty(product.Name))
                     {
                         products.Add(product);
                     }
@@ -104,7 +118,7 @@ public class Parser
             }
 
             // Сортируем по цене (от дешевых к дорогим)
-            return products.OrderBy(p => p.PriceRub).ToList();
+            return products.OrderBy(p => p.Price).ToList();
         }
         catch (HttpRequestException ex)
         {
@@ -114,13 +128,6 @@ public class Parser
         {
             throw new Exception($"Ошибка парсинга: {ex.Message}");
         }
-    }
-
-    // Оставляем старый метод для совместимости
-    public async Task<List<decimal>> ParsePricesAsync(string url)
-    {
-        var products = await ParseProductsAsync(url);
-        return products.Select(p => p.PriceRub).ToList();
     }
 
     public void Dispose()

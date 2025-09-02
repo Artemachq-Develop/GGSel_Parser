@@ -12,16 +12,22 @@ public partial class Form1 : Form
         _parser = new Parser();
     }
 
-    public void AddElementToLinksList()
+    private void addLinksButton_Click(object sender, EventArgs e)
     {
-        if (!string.IsNullOrEmpty(linksTextBox.Text))
+        //AddElementToLinksList();
+
+        using (GameInfoForm gameForm = new GameInfoForm())
         {
-            linksListBox.Items.Add(linksTextBox.Text);
-            linksTextBox.Clear();
+            if (gameForm.ShowDialog() == DialogResult.OK)
+            {
+                // Получаем созданный объект GameInfo
+                GameInfo newGame = gameForm.GameInfo;
+
+                // Используем данные (например, добавляем в список)
+                linksListBox.Items.Add(newGame.ToString());
+            }
         }
     }
-
-    private void addLinksButton_Click(object sender, EventArgs e) => AddElementToLinksList();
 
     private async void checkButton_Click(object sender, EventArgs e)
     {
@@ -31,8 +37,8 @@ public partial class Form1 : Form
             checkButton.Text = "Парсинг...";
             lowPriceListBox.Items.Clear();
 
-            string url = !string.IsNullOrEmpty(linksTextBox.Text)
-                ? linksTextBox.Text
+            string? url = linksListBox.SelectedItem != null
+                ? linksListBox.SelectedItem.ToString()
                 : "https://ggsel.net/catalog/helldivers-2-keys-steam";
 
             List<GameProduct> products = await _parser.ParseProductsAsync(url);
@@ -53,21 +59,21 @@ public partial class Form1 : Form
                         : product.Name;
 
                     lowPriceListBox.Items.Add($"{displayName}");
-                    lowPriceListBox.Items.Add($"  💰 {product.PriceRub:F0} ₽  |  📊 Продаж: {product.SalesCount}  |  🛒 {product.SellerName}");
+                    lowPriceListBox.Items.Add($"  💰 {product.Price:F0} ₽  |  📊 Продаж: {product.SalesCount}  |  🛒 {product.SellerName}");
                     lowPriceListBox.Items.Add("───────────────────");
                 }
 
                 // Статистика
                 lowPriceListBox.Items.Add("═══════════════════════════");
                 lowPriceListBox.Items.Add("📈 СТАТИСТИКА:");
-                lowPriceListBox.Items.Add($"💸 Минимальная цена: {products.Min(p => p.PriceRub):F0} ₽");
-                lowPriceListBox.Items.Add($"💰 Максимальная цена: {products.Max(p => p.PriceRub):F0} ₽");
-                lowPriceListBox.Items.Add($"📊 Средняя цена: {products.Average(p => p.PriceRub):F0} ₽");
+                lowPriceListBox.Items.Add($"💸 Минимальная цена: {products.Min(p => p.Price):F0} ₽");
+                lowPriceListBox.Items.Add($"💰 Максимальная цена: {products.Max(p => p.Price):F0} ₽");
+                lowPriceListBox.Items.Add($"📊 Средняя цена: {products.Average(p => p.Price):F0} ₽");
                 lowPriceListBox.Items.Add($"🔥 Всего продаж: {products.Sum(p => p.SalesCount):N0}");
 
                 // Самый популярный товар
                 var mostPopular = products.OrderByDescending(p => p.SalesCount).First();
-                lowPriceListBox.Items.Add($"⭐ Лидер продаж: {mostPopular.SalesCount} шт. ({mostPopular.Name} - {mostPopular.PriceRub})");
+                lowPriceListBox.Items.Add($"⭐ Лидер продаж: {mostPopular.SalesCount} шт. ({mostPopular.Name} - {mostPopular.Price})");
             }
             else
             {

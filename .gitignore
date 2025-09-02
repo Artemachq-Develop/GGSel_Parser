@@ -52,3 +52,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+.vs/GGSel_Parser/v17/DocumentLayout.json
+.vs/GGSel_Parser/v17/DocumentLayout.backup.json
+.vs/GGSel_Parser/v17/.suo
+.vs/GGSel_Parser/FileContentIndex/83e8284d-2fd3-4615-899b-a8542cf3e01c.vsidx

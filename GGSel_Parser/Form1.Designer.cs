@@ -29,13 +29,11 @@ partial class Form1
     /// </summary>
     private void InitializeComponent()
     {
-        components = new System.ComponentModel.Container();
         linksListBox = new ListBox();
         linkLabel = new Label();
         linksTextBox = new TextBox();
         addLinksButton = new Button();
         lowPriceListBox = new ListBox();
-        notifyIcon1 = new NotifyIcon(components);
         checkButton = new Button();
         SuspendLayout();
         // 
@@ -73,6 +71,7 @@ partial class Form1
         addLinksButton.TabIndex = 3;
         addLinksButton.Text = "Add to List";
         addLinksButton.UseVisualStyleBackColor = true;
+        addLinksButton.Click += addLinksButton_Click;
         // 
         // lowPriceListBox
         // 
@@ -80,28 +79,24 @@ partial class Form1
         lowPriceListBox.HorizontalScrollbar = true;
         lowPriceListBox.Location = new Point(258, 39);
         lowPriceListBox.Name = "lowPriceListBox";
-        lowPriceListBox.Size = new Size(150, 184);
+        lowPriceListBox.Size = new Size(345, 184);
         lowPriceListBox.TabIndex = 0;
-        // 
-        // notifyIcon1
-        // 
-        notifyIcon1.Text = "notifyIcon1";
-        notifyIcon1.Visible = true;
         // 
         // checkButton
         // 
         checkButton.Location = new Point(258, 244);
         checkButton.Name = "checkButton";
-        checkButton.Size = new Size(150, 29);
+        checkButton.Size = new Size(345, 29);
         checkButton.TabIndex = 3;
         checkButton.Text = "Check";
         checkButton.UseVisualStyleBackColor = true;
+        checkButton.Click += checkButton_Click;
         // 
         // Form1
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(423, 437);
+        ClientSize = new Size(620, 437);
         Controls.Add(checkButton);
         Controls.Add(addLinksButton);
         Controls.Add(linksTextBox);
@@ -122,6 +117,5 @@ partial class Form1
     #endregion
 
     private ListBox lowPriceListBox;
-    private NotifyIcon notifyIcon1;
     private Button checkButton;
 }

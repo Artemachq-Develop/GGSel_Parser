@@ -29,16 +29,23 @@ partial class Form1
     /// </summary>
     private void InitializeComponent()
     {
+        components = new System.ComponentModel.Container();
         linksListBox = new ListBox();
+        linksContextMenuStrip = new ContextMenuStrip(components);
+        addToolStripMenuItem = new ToolStripMenuItem();
+        removeToolStripMenuItem = new ToolStripMenuItem();
         linkLabel = new Label();
         addLinksButton = new Button();
         lowPriceListBox = new ListBox();
         checkButton = new Button();
         lowPriceLebel = new Label();
+        toolTip1 = new ToolTip(components);
+        linksContextMenuStrip.SuspendLayout();
         SuspendLayout();
         // 
         // linksListBox
         // 
+        linksListBox.ContextMenuStrip = linksContextMenuStrip;
         linksListBox.FormattingEnabled = true;
         linksListBox.HorizontalScrollbar = true;
         linksListBox.Items.AddRange(new object[] { "https://ggsel.net/catalog/helldivers-2-keys-steam" });
@@ -46,6 +53,28 @@ partial class Form1
         linksListBox.Name = "linksListBox";
         linksListBox.Size = new Size(150, 184);
         linksListBox.TabIndex = 0;
+        linksListBox.MouseMove += linksListBox_MouseMove;
+        // 
+        // linksContextMenuStrip
+        // 
+        linksContextMenuStrip.Items.AddRange(new ToolStripItem[] { addToolStripMenuItem, removeToolStripMenuItem });
+        linksContextMenuStrip.Name = "linksContextMenuStrip";
+        linksContextMenuStrip.Size = new Size(181, 70);
+        linksContextMenuStrip.Text = "sadas";
+        // 
+        // addToolStripMenuItem
+        // 
+        addToolStripMenuItem.Name = "addToolStripMenuItem";
+        addToolStripMenuItem.Size = new Size(180, 22);
+        addToolStripMenuItem.Text = "Добавить элемент";
+        addToolStripMenuItem.Click += addToolStripMenuItem_Click;
+        // 
+        // removeToolStripMenuItem
+        // 
+        removeToolStripMenuItem.Name = "removeToolStripMenuItem";
+        removeToolStripMenuItem.Size = new Size(180, 22);
+        removeToolStripMenuItem.Text = "Удалить элемент";
+        removeToolStripMenuItem.Click += removeToolStripMenuItem_Click;
         // 
         // linkLabel
         // 
@@ -105,6 +134,7 @@ partial class Form1
         Controls.Add(linksListBox);
         Name = "Form1";
         Text = "Form1";
+        linksContextMenuStrip.ResumeLayout(false);
         ResumeLayout(false);
     }
 
@@ -117,4 +147,8 @@ partial class Form1
     private ListBox lowPriceListBox;
     private Button checkButton;
     private Label lowPriceLebel;
+    private ToolTip toolTip1;
+    private ContextMenuStrip linksContextMenuStrip;
+    private ToolStripMenuItem addToolStripMenuItem;
+    private ToolStripMenuItem removeToolStripMenuItem;
 }

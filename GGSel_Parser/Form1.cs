@@ -1,97 +1,283 @@
-﻿using System.Windows.Forms;
+﻿using Newtonsoft.Json;
 
 namespace GGSel_Parser;
 
 public partial class Form1 : Form
 {
-    private Parser _parser;
+    #region Fields
 
+    private readonly Parser _parser = new Parser();
+    private readonly List<GameInfo> _gameInfoSaveList = new List<GameInfo>();
+    private int _hoveredIndex = -1;
+
+    #endregion
+
+    #region Constructor
     public Form1()
     {
         InitializeComponent();
-        _parser = new Parser();
+        LoadData();
     }
+    #endregion
 
+    #region Event Handlers
     private void addLinksButton_Click(object sender, EventArgs e)
     {
-        //AddElementToLinksList();
+        AddGameInfoToList();
+    }
 
-        using (GameInfoForm gameForm = new GameInfoForm())
-        {
-            if (gameForm.ShowDialog() == DialogResult.OK)
-            {
-                // Получаем созданный объект GameInfo
-                GameInfo newGame = gameForm.GameInfo;
+    private void addToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        AddGameInfoToList();
+    }
 
-                // Используем данные (например, добавляем в список)
-                linksListBox.Items.Add(newGame.ToString());
-            }
-        }
+    private void removeToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        RemoveSelectedGameInfo();
     }
 
     private async void checkButton_Click(object sender, EventArgs e)
     {
+        await ParseSelectedGameAsync();
+    }
+
+    private void linksListBox_MouseMove(object sender, MouseEventArgs e)
+    {
+        HandleListBoxTooltip(sender as ListBox, e);
+    }
+    #endregion
+
+    #region Game Info Management
+    private void AddGameInfoToList()
+    {
+        var gameInfo = CreateGameInfoItem();
+        if (gameInfo != null)
+        {
+            _gameInfoSaveList.Add(gameInfo);
+            linksListBox.Items.Add(gameInfo.ToString());
+            SaveData();
+        }
+    }
+
+    private void RemoveSelectedGameInfo()
+    {
+        if (linksListBox.SelectedItem == null)
+            return;
+
+        int selectedIndex = linksListBox.SelectedIndex;
+
+        if (selectedIndex >= 0 && selectedIndex < _gameInfoSaveList.Count)
+        {
+            _gameInfoSaveList.RemoveAt(selectedIndex);
+            linksListBox.Items.RemoveAt(selectedIndex);
+            SaveData();
+        }
+    }
+
+    private GameInfo? CreateGameInfoItem()
+    {
+        using var gameForm = new GameInfoForm();
+        return gameForm.ShowDialog() == DialogResult.OK
+            ? gameForm.GameInfo
+            : null;
+    }
+
+    #endregion
+
+    #region Data Persistence
+    public void SaveData()
+    {
         try
         {
-            checkButton.Enabled = false;
-            checkButton.Text = "Парсинг...";
-            lowPriceListBox.Items.Clear();
+            string json = JsonConvert.SerializeObject(_gameInfoSaveList, Formatting.Indented);
+            File.WriteAllText(Settings.DataFileName, json);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения данных: {ex.Message}",
+                "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
 
-            string? url = linksListBox.SelectedItem != null
-                ? linksListBox.SelectedItem.ToString()
-                : "https://ggsel.net/catalog/helldivers-2-keys-steam";
+    public void LoadData()
+    {
+        try
+        {
+            if (!File.Exists(Settings.DataFileName))
+                return;
 
-            List<GameProduct> products = await _parser.ParseProductsAsync(url);
+            string data = File.ReadAllText(Settings.DataFileName);
+            var loadedData = JsonConvert.DeserializeObject<List<GameInfo>>(data);
 
-            if (products.Count > 0)
+            if (loadedData != null)
             {
-                // Заголовок
-                lowPriceListBox.Items.Add($"Найдено товаров: {products.Count}");
-                lowPriceListBox.Items.Add("═══════════════════════════");
-
-                // Показываем топ-15 самых дешевых товаров
-                var topCheapest = products.Take(products.Count).ToList();
-                foreach (var product in topCheapest)
-                {
-                    // Обрезаем длинные названия для лучшего отображения
-                    string displayName = product.Name.Length > 50
-                        ? product.Name.Substring(0, 47) + "..."
-                        : product.Name;
-
-                    lowPriceListBox.Items.Add($"{displayName}");
-                    lowPriceListBox.Items.Add($"  💰 {product.Price:F0} ₽  |  📊 Продаж: {product.SalesCount}  |  🛒 {product.SellerName}");
-                    lowPriceListBox.Items.Add("───────────────────");
-                }
-
-                // Статистика
-                lowPriceListBox.Items.Add("═══════════════════════════");
-                lowPriceListBox.Items.Add("📈 СТАТИСТИКА:");
-                lowPriceListBox.Items.Add($"💸 Минимальная цена: {products.Min(p => p.Price):F0} ₽");
-                lowPriceListBox.Items.Add($"💰 Максимальная цена: {products.Max(p => p.Price):F0} ₽");
-                lowPriceListBox.Items.Add($"📊 Средняя цена: {products.Average(p => p.Price):F0} ₽");
-                lowPriceListBox.Items.Add($"🔥 Всего продаж: {products.Sum(p => p.SalesCount):N0}");
-
-                // Самый популярный товар
-                var mostPopular = products.OrderByDescending(p => p.SalesCount).First();
-                lowPriceListBox.Items.Add($"⭐ Лидер продаж: {mostPopular.SalesCount} шт. ({mostPopular.Name} - {mostPopular.Price})");
-            }
-            else
-            {
-                lowPriceListBox.Items.Add("❌ Товары не найдены");
-                MessageBox.Show("На странице не найдено товаров.",
-                    "Результат парсинга", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _gameInfoSaveList.AddRange(loadedData);
+                PopulateLinksListBox();
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка: {ex.Message}",
-                "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lowPriceListBox.Items.Add($"❌ Ошибка: {ex.Message}");
+            MessageBox.Show($"Ошибка загрузки данных: {ex.Message}",
+                "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void PopulateLinksListBox()
+    {
+        linksListBox.Items.Clear();
+        foreach (var gameInfo in _gameInfoSaveList)
+        {
+            linksListBox.Items.Add(gameInfo.ToString());
+        }
+    }
+    #endregion
+
+    #region Parsing Logic
+    private async Task ParseSelectedGameAsync()
+    {
+        try
+        {
+            SetParsingState(true);
+            ClearResults();
+
+            string url = GetSelectedUrlOrDefault();
+            var products = await _parser.ParseProductsAsync(url);
+
+            DisplayParsingResults(products);
+        }
+        catch (Exception ex)
+        {
+            HandleParsingError(ex);
         }
         finally
         {
-            checkButton.Enabled = true;
-            checkButton.Text = "Проверить цены";
+            SetParsingState(false);
         }
     }
+
+    private void SetParsingState(bool isParsing)
+    {
+        checkButton.Enabled = !isParsing;
+        checkButton.Text = isParsing ? "Парсинг..." : "Проверить цены";
+    }
+
+    private void ClearResults()
+    {
+        lowPriceListBox.Items.Clear();
+    }
+
+    private string GetSelectedUrlOrDefault()
+    {
+        return linksListBox.SelectedItem?.ToString()
+            ?? "https://ggsel.net/catalog/helldivers-2-keys-steam";
+    }
+
+    private void DisplayParsingResults(List<GameProduct> products)
+    {
+        if (products.Count == 0)
+        {
+            DisplayNoProductsFound();
+            return;
+        }
+
+        DisplayProductsHeader(products.Count);
+        DisplayProductsList(products);
+        DisplayStatistics(products);
+    }
+
+    private void DisplayNoProductsFound()
+    {
+        lowPriceListBox.Items.Add("❌ Товары не найдены");
+        MessageBox.Show("На странице не найдено товаров.",
+            "Результат парсинга", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void DisplayProductsHeader(int count)
+    {
+        lowPriceListBox.Items.Add($"Найдено товаров: {count}");
+        lowPriceListBox.Items.Add("═══════════════════════════");
+    }
+
+    private void DisplayProductsList(List<GameProduct> products)
+    {
+        foreach (var product in products)
+        {
+            string displayName = TruncateProductName(product.Name, Settings.MaxProductNameLength);
+
+            lowPriceListBox.Items.Add(displayName);
+            lowPriceListBox.Items.Add($"  💰 {product.Price:F0} ₽  |  📊 Продаж: {product.SalesCount}  |  🛒 {product.SellerName}");
+            lowPriceListBox.Items.Add("───────────────────");
+        }
+    }
+
+    private void DisplayStatistics(List<GameProduct> products)
+    {
+        var mostPopular = products.OrderByDescending(p => p.SalesCount).First();
+
+        lowPriceListBox.Items.Add("═══════════════════════════");
+        lowPriceListBox.Items.Add("📈 СТАТИСТИКА:");
+        lowPriceListBox.Items.Add($"💸 Минимальная цена: {products.Min(p => p.Price):F0} ₽");
+        lowPriceListBox.Items.Add($"💰 Максимальная цена: {products.Max(p => p.Price):F0} ₽");
+        lowPriceListBox.Items.Add($"📊 Средняя цена: {products.Average(p => p.Price):F0} ₽");
+        lowPriceListBox.Items.Add($"🔥 Всего продаж: {products.Sum(p => p.SalesCount):N0}");
+        lowPriceListBox.Items.Add($"⭐ Лидер продаж: {mostPopular.SalesCount} шт. ({mostPopular.Name} - {mostPopular.Price})");
+    }
+
+    private void HandleParsingError(Exception ex)
+    {
+        string errorMessage = $"Ошибка: {ex.Message}";
+
+        MessageBox.Show(errorMessage, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        lowPriceListBox.Items.Add($"❌ {errorMessage}");
+    }
+    #endregion
+
+    #region Utility Methods
+    private static string TruncateProductName(string name, int maxLength)
+    {
+        return name.Length > maxLength
+            ? name.Substring(0, maxLength - 3) + "..."
+            : name;
+    }
+
+    private void HandleListBoxTooltip(ListBox listBox, MouseEventArgs e)
+    {
+        if (listBox == null)
+            return;
+
+        int newHoveredIndex = listBox.IndexFromPoint(e.Location);
+
+        if (_hoveredIndex == newHoveredIndex)
+            return;
+
+        _hoveredIndex = newHoveredIndex;
+
+        if (IsValidListBoxIndex(listBox, _hoveredIndex))
+        {
+            ShowTooltip(listBox);
+        }
+        else
+        {
+            HideTooltip(listBox);
+        }
+    }
+
+    private bool IsValidListBoxIndex(ListBox listBox, int index)
+    {
+        return index >= 0 && index < listBox.Items.Count;
+    }
+
+    private void ShowTooltip(ListBox listBox)
+    {
+        string tooltipText = listBox.Items[_hoveredIndex].ToString();
+        toolTip1.Active = false;
+        toolTip1.SetToolTip(listBox, tooltipText);
+        toolTip1.Active = true;
+    }
+
+    private void HideTooltip(ListBox listBox)
+    {
+        toolTip1.Hide(listBox);
+    }
+    #endregion
 }

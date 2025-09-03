@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Windows.Forms;
 
 namespace GGSel_Parser;
 
@@ -6,9 +7,10 @@ public partial class Form1 : Form
 {
     #region Fields
 
+    private readonly TooltipElement _tooltipElement;
+
     private readonly Parser _parser = new Parser();
     private readonly List<GameInfo> _gameInfoSaveList = new List<GameInfo>();
-    private int _hoveredIndex = -1;
 
     #endregion
 
@@ -16,6 +18,9 @@ public partial class Form1 : Form
     public Form1()
     {
         InitializeComponent();
+
+        _tooltipElement = new TooltipElement(toolTip1);
+
         LoadData();
     }
     #endregion
@@ -43,7 +48,7 @@ public partial class Form1 : Form
 
     private void linksListBox_MouseMove(object sender, MouseEventArgs e)
     {
-        HandleListBoxTooltip(sender as ListBox, e);
+        _tooltipElement.HandleListBoxTooltip(sender as ListBox, e);
     }
     #endregion
 
@@ -94,8 +99,8 @@ public partial class Form1 : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка сохранения данных: {ex.Message}",
-                "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Data saving error: {ex.Message}",
+                "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -117,8 +122,8 @@ public partial class Form1 : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка загрузки данных: {ex.Message}",
-                "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show($"Data upload exception: {ex.Message}",
+                "Exception", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -158,7 +163,7 @@ public partial class Form1 : Form
     private void SetParsingState(bool isParsing)
     {
         checkButton.Enabled = !isParsing;
-        checkButton.Text = isParsing ? "Парсинг..." : "Проверить цены";
+        checkButton.Text = isParsing ? "Parsing..." : "Check prices";
     }
 
     private void ClearResults()
@@ -168,8 +173,8 @@ public partial class Form1 : Form
 
     private string GetSelectedUrlOrDefault()
     {
-        return linksListBox.SelectedItem?.ToString()
-            ?? "https://ggsel.net/catalog/helldivers-2-keys-steam";
+        return _gameInfoSaveList[linksListBox.SelectedIndex].Link
+            ?? Settings.DefaultUrl;
     }
 
     private void DisplayParsingResults(List<GameProduct> products)
@@ -180,21 +185,22 @@ public partial class Form1 : Form
             return;
         }
 
+        DisplayStatistics(products);
+
         DisplayProductsHeader(products.Count);
         DisplayProductsList(products);
-        DisplayStatistics(products);
     }
 
     private void DisplayNoProductsFound()
     {
-        lowPriceListBox.Items.Add("❌ Товары не найдены");
-        MessageBox.Show("На странице не найдено товаров.",
-            "Результат парсинга", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        lowPriceListBox.Items.Add("❌ No products found");
+        MessageBox.Show("No products found on the page.",
+            "The result of parsing", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void DisplayProductsHeader(int count)
     {
-        lowPriceListBox.Items.Add($"Найдено товаров: {count}");
+        lowPriceListBox.Items.Add($"Products found: {count}");
         lowPriceListBox.Items.Add("═══════════════════════════");
     }
 
@@ -205,7 +211,7 @@ public partial class Form1 : Form
             string displayName = TruncateProductName(product.Name, Settings.MaxProductNameLength);
 
             lowPriceListBox.Items.Add(displayName);
-            lowPriceListBox.Items.Add($"  💰 {product.Price:F0} ₽  |  📊 Продаж: {product.SalesCount}  |  🛒 {product.SellerName}");
+            lowPriceListBox.Items.Add($"  💰 {product.Price:F0} ₽  |  📊 Sales: {product.SalesCount}  |  🛒 {product.SellerName}");
             lowPriceListBox.Items.Add("───────────────────");
         }
     }
@@ -215,19 +221,20 @@ public partial class Form1 : Form
         var mostPopular = products.OrderByDescending(p => p.SalesCount).First();
 
         lowPriceListBox.Items.Add("═══════════════════════════");
-        lowPriceListBox.Items.Add("📈 СТАТИСТИКА:");
-        lowPriceListBox.Items.Add($"💸 Минимальная цена: {products.Min(p => p.Price):F0} ₽");
-        lowPriceListBox.Items.Add($"💰 Максимальная цена: {products.Max(p => p.Price):F0} ₽");
-        lowPriceListBox.Items.Add($"📊 Средняя цена: {products.Average(p => p.Price):F0} ₽");
-        lowPriceListBox.Items.Add($"🔥 Всего продаж: {products.Sum(p => p.SalesCount):N0}");
-        lowPriceListBox.Items.Add($"⭐ Лидер продаж: {mostPopular.SalesCount} шт. ({mostPopular.Name} - {mostPopular.Price})");
+        lowPriceListBox.Items.Add("📈 Statistic:");
+        lowPriceListBox.Items.Add($"💸 Min Price: {products.Min(p => p.Price):F0} ₽");
+        lowPriceListBox.Items.Add($"💰 Max Price: {products.Max(p => p.Price):F0} ₽");
+        lowPriceListBox.Items.Add($"📊 Average Price: {products.Average(p => p.Price):F0} ₽");
+        lowPriceListBox.Items.Add($"🔥 All sales: {products.Sum(p => p.SalesCount):N0}");
+        lowPriceListBox.Items.Add($"⭐ Sales leader: x{mostPopular.SalesCount}. ({mostPopular.Name} - {mostPopular.Price})");
+        lowPriceListBox.Items.Add("═══════════════════════════");
     }
 
     private void HandleParsingError(Exception ex)
     {
-        string errorMessage = $"Ошибка: {ex.Message}";
+        string errorMessage = $"Exception: {ex.Message}";
 
-        MessageBox.Show(errorMessage, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        MessageBox.Show(errorMessage, "Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
         lowPriceListBox.Items.Add($"❌ {errorMessage}");
     }
     #endregion
@@ -240,44 +247,5 @@ public partial class Form1 : Form
             : name;
     }
 
-    private void HandleListBoxTooltip(ListBox listBox, MouseEventArgs e)
-    {
-        if (listBox == null)
-            return;
-
-        int newHoveredIndex = listBox.IndexFromPoint(e.Location);
-
-        if (_hoveredIndex == newHoveredIndex)
-            return;
-
-        _hoveredIndex = newHoveredIndex;
-
-        if (IsValidListBoxIndex(listBox, _hoveredIndex))
-        {
-            ShowTooltip(listBox);
-        }
-        else
-        {
-            HideTooltip(listBox);
-        }
-    }
-
-    private bool IsValidListBoxIndex(ListBox listBox, int index)
-    {
-        return index >= 0 && index < listBox.Items.Count;
-    }
-
-    private void ShowTooltip(ListBox listBox)
-    {
-        string tooltipText = listBox.Items[_hoveredIndex].ToString();
-        toolTip1.Active = false;
-        toolTip1.SetToolTip(listBox, tooltipText);
-        toolTip1.Active = true;
-    }
-
-    private void HideTooltip(ListBox listBox)
-    {
-        toolTip1.Hide(listBox);
-    }
     #endregion
 }

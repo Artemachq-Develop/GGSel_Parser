@@ -10,7 +10,7 @@ namespace GGSel_Parser
 
         public override string ToString()
         {
-            return $"{Name} - {Link}";
+            return $"{Name}";
         }
     }
 }

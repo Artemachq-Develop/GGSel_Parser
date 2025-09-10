@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using System.Windows.Forms;
 
 namespace GGSel_Parser;
 
@@ -10,6 +9,7 @@ public partial class Form1 : Form
     private readonly TooltipElement _tooltipElement;
 
     private readonly Parser _parser = new Parser();
+
     private readonly List<GameInfo> _gameInfoSaveList = new List<GameInfo>();
 
     #endregion
@@ -140,13 +140,21 @@ public partial class Form1 : Form
     #region Parsing Logic
     private async Task ParseSelectedGameAsync()
     {
+        var progress = new Progress<int>(percent =>
+        {
+            progressBar1.Value = Math.Max(0, Math.Min(100, percent));
+        });
+
         try
         {
             SetParsingState(true);
             ClearResults();
 
+            // Небольшая задержка для корректного отображения ProgressBar
+            await Task.Delay(50);
+
             string url = GetSelectedUrlOrDefault();
-            var products = await _parser.ParseProductsAsync(url);
+            var products = await _parser.ParseProductsAsync(url, progress);
 
             DisplayParsingResults(products);
         }
@@ -156,6 +164,8 @@ public partial class Form1 : Form
         }
         finally
         {
+            await Task.Delay(500);
+
             SetParsingState(false);
         }
     }
@@ -164,6 +174,11 @@ public partial class Form1 : Form
     {
         checkButton.Enabled = !isParsing;
         checkButton.Text = isParsing ? "Parsing..." : "Check prices";
+
+        progressBar1.Visible = isParsing;
+
+        if (!isParsing)
+            progressBar1.Value = 0;
     }
 
     private void ClearResults()

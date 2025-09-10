@@ -19,12 +19,14 @@ internal class Parser
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
     }
 
-    public async Task<List<GameProduct>> ParseProductsAsync(string url)
+    public async Task<List<GameProduct>> ParseProductsAsync(string url, IProgress<int> progress = null)
     {
         var products = new List<GameProduct>();
 
         try
         {
+            progress?.Report(10);
+
             string html = await _httpClient.GetStringAsync(url);
 
             if (string.IsNullOrEmpty(html))
@@ -32,9 +34,21 @@ internal class Parser
                 throw new Exception("Пустой ответ от сервера");
             }
 
+            progress?.Report(30);
+
             // Ищем полные JSON объекты товаров
             var jsonPattern = @"\{""id_goods"":\d+,.*?""sort"":\[[^\]]+\]\}";
             var matches = Regex.Matches(html, jsonPattern, RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+            if (matches.Count == 0)
+            {
+                progress?.Report(100);
+                return products;
+            }
+
+            // Шаг 3: Парсинг каждого товара (30%-90% прогресса)
+            int totalMatches = matches.Count;
+            int currentMatch = 0;
 
             foreach (Match match in matches)
             {
@@ -115,7 +129,13 @@ internal class Parser
                     // Пропускаем некорректный JSON
                     continue;
                 }
+
+                currentMatch++;
+                int currentProgress = 30 + (int)((double)currentMatch / totalMatches * 60);
+                progress?.Report(currentProgress);
             }
+
+            progress?.Report(100);
 
             // Сортируем по цене (от дешевых к дорогим)
             return products.OrderBy(p => p.Price).ToList();
